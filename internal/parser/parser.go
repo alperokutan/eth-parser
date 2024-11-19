@@ -1,16 +1,17 @@
-package main
+package parser
 
 import (
-	"fmt"
 	"sync"
 	"time"
+
+	"eth-parser/internal/rpc"
 )
 
 type EthereumParser struct {
 	currentBlock int
 	addresses    map[string][]Transaction
 	mu           sync.Mutex
-	onNewTx      func(address string, tx Transaction) // Notification callback
+	onNewTx      func(address string, tx Transaction)
 }
 
 func NewEthereumParser(callback func(address string, tx Transaction)) *EthereumParser {
@@ -41,17 +42,16 @@ func (p *EthereumParser) GetTransactions(address string) []Transaction {
 	return p.addresses[address]
 }
 
-func (p *EthereumParser) detectNewBlocks() {
+func (p *EthereumParser) DetectNewBlocks() {
 	for {
-		latestBlock, err := getBlockNumber()
+		latestBlock, err := rpc.GetBlockNumber()
 		if err != nil {
-			fmt.Println("Error fetching block number:", err)
+			// Error handling için log eklenebilir
 			time.Sleep(10 * time.Second)
 			continue
 		}
 
 		if latestBlock > p.currentBlock {
-			fmt.Printf("New block detected: %d\n", latestBlock)
 			for b := p.currentBlock + 1; b <= latestBlock; b++ {
 				p.processBlock(b)
 			}
@@ -63,10 +63,8 @@ func (p *EthereumParser) detectNewBlocks() {
 }
 
 func (p *EthereumParser) processBlock(blockNumber int) {
-	// Fetch and process transactions in the new block
-	transactions, err := getBlockTransactions(blockNumber)
+	transactions, err := rpc.GetBlockTransactions(blockNumber)
 	if err != nil {
-		fmt.Println("Error fetching transactions for block:", blockNumber, err)
 		return
 	}
 
